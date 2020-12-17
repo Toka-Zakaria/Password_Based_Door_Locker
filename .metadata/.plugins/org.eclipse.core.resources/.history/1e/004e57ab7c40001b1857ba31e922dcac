@@ -1,0 +1,609 @@
+/**********************************************************************************
+ * [FILE NAME]: application_functions.c
+ *
+ * [AUTHOR]: Toka Zakaria Mohamed Ramadan
+ *
+ * [DATE CREATED]: Nov 5, 2020
+ *
+ * [Description]: File contain functions will be used
+ *                in the applications for Human_Interface ECU.
+ *
+ ***********************************************************************************/
+#include"application_functions.h"
+
+/************************************************************************************************
+ *                                    Application_Functions
+ ************************************************************************************************/
+/***************************************************************************************************
+ * [Function Name]: password_checkMismatch
+ *
+ * [Description]:  Function to choose an option from opening the door or changing the password
+ *
+ * [Args]:
+ *
+ * [In]            NONE
+ *
+ * [Out]           unsigned char
+ *
+ * [Returns]:     the result of the required choice
+ ***************************************************************************************************/
+uint8 select_Option (void)
+{
+	/*
+	 * local variable to:
+	 *        -store the value of the pressed key choice in the keypad
+	 *        -return the stored value of the choice to the application
+	 */
+	uint8 option;
+
+	/*
+	 *That will happen once the function be called:
+	 *   1-call the function of call screen to clear the LCD screen
+	 *   2-display a message for the user to select his option
+	 *   3-force arrow of the LCD to go to the second line
+	 *   4-display choice 1 for the user
+	 *   5-force arrow of the LCD to go to the third line
+	 *   6-display choice 2 for the user
+	 */
+
+	LCD_clearScreen();
+	LCD_displayStringRowColumn(0,0,"Select option");
+	LCD_goToRowColumn(1,0);
+	LCD_displayStringRowColumn(1,0,"1:Change password");
+	LCD_goToRowColumn(1,0);
+	LCD_displayStringRowColumn(2,0,"2:Open door");
+
+	do
+	{
+	/*
+	 *Store the value of the pressed key in the local variable "option"
+	 */
+	option = KeyPad_getPressedKey();
+
+    /*
+     * put the program in pooling to wait user
+     * until entering the choice 1 or choice 2
+     */
+	}while ( (option != CHOICE_1) && (option != CHOICE_2) );
+
+
+	/*
+	 * wait for 1 second after press button on the keypad
+	 * to avoid repeating enter character more than one time
+	 * if the next step of using this function using keypad too
+	 */
+	 _delay_ms(1000);
+
+	/*
+	 * check condition: to make sure that the pressed key
+	 * is between the only two options
+	 * and another pressed key will be ignored
+	 */
+	if (option == CHOICE_1)
+	{
+		option = CHOICE_1;
+	}/*End of if condition*/
+	else if (option == CHOICE_2)
+	{
+		option = CHOICE_2;
+
+	}/*End of else if condition*/
+
+	/*
+	 * return the value of the option stored to the original program
+	 */
+	return option;
+
+}/*End of select_Option function*/
+/**************************************************************************************************/
+
+
+/***************************************************************************************************
+ * [Function Name]: password_checkMismatch
+ *
+ * [Description]:  Function to check if the two passwords equal
+ *                 or not.
+ *
+ * [Args]:         pass1, pass2
+ *
+ * [In]            pass1: Pointer to character
+ *                 pass2: Pointer to character
+ *
+ * [Out]           unsigned char
+ *
+ * [Returns]:     the result of the comparing the two passwords
+ ***************************************************************************************************/
+uint8 password_checkMismatch(uint8* pass1, uint8* pass2)
+{
+	/*
+	 * local variable to use it as a counter for the loop
+	 */
+	uint8 count;
+	/*
+	 * local variable to use it to check the mismatch
+	 * between the two entered password
+	 * give it initial value assuming no mismatch happen at first
+	 */
+	uint8 mismatch=0;
+
+	/*
+	 * for loop to check the matching or not
+	 * to pass on the two passwords entered digit by digit
+	 * to find the mismatch in any digit
+	 */
+
+	for(count=INITIAL_VALUE; count<PASSWORD_WIDTH; count++)
+	{
+		if( pass1[count] != pass2[count] )
+		{
+			/*
+			 * change the value of the mismatch if any two digits
+			 * are not equal
+			 */
+			mismatch = MISMATCH_OCCUR;
+
+			/*
+			 * change the value of the counter to another value
+			 * value larger than the no of iteration to exit from the loop
+			 * there is no need to complete the loop after finding difference in one digit
+			 */
+			count= PASSWORD_WIDTH;
+
+		}/*End of compare passwords*/
+
+	}/*End of for loop of mismatching*/
+
+	/*
+	 * return the final value of the mismatch variable to the original application
+	 */
+	return mismatch;
+
+}/*End of check_Mismatch function*/
+/*************************************************************************************************/
+
+/***************************************************************************************************
+ * [Function Name]: store_Password
+ *
+ * [Description]:  Function to get the password from the user and store it in array
+ *
+ * [Args]:         pass
+ *
+ * [In]            pass: Pointer to character
+ *
+ * [Out]           NONE
+ *
+ * [Returns]:      NONE
+ ***************************************************************************************************/
+void store_Password(uint8 *pass)
+{
+	/*
+	 * local variable to use it as a counter for the loop
+	 */
+	uint8 count;
+
+	/*
+	 *That will happen once the function be called:
+	 *   1-call the function of call screen to clear the LCD screen
+	 *   2-display a message for the user to "please enter a"
+	 *   3-force arrow of the LCD to go to the second line
+	 *   4-display a message for the user "password then Enter ="
+	 */
+	LCD_clearScreen();
+	LCD_displayStringRowColumn(0,0,"Enter Password,");
+	LCD_goToRowColumn(1,0);
+	LCD_displayStringRowColumn(1,0,"please then Enter\"=\"");
+
+
+	for(count= INITIAL_VALUE ; count< PASSWORD_WIDTH; count++)
+	{
+		/*
+		 * force the cursor to begin from the third line
+		 */
+		LCD_goToRowColumn(2,count);
+		/*store the password of the user element by element in array*/
+		pass[count] = KeyPad_getPressedKey();
+		/*
+		 * condition to detect if the pressed key in keypad
+		 * is number or character to display the in right way on the screen
+		 * display it for 3seconds only then overwrite '*' on it to keep privacy
+		 */
+		if ((pass[count]>= 0) && (pass[count]<= 9))
+		{
+			LCD_intgerToString(pass[count]);
+		}
+		else
+		{
+			LCD_displayCharacter(pass[count]);
+		}
+
+		/*
+		 * wait for 3 seconds to give time to the current press and
+		 * the next press of the keypad
+		 * and to display the number for 3 seconds
+		 */
+		_delay_ms(4000);
+
+		/*
+		 * force the cursor to return to the same position and
+		 * overwrite '*' on the number to keep privacy
+		 */
+		LCD_goToRowColumn(2,count);
+		LCD_displayCharacter('*');
+	} /*End of the for loop*/
+	/*
+	 * wait until user submit the password by pressing '='
+	 */
+
+	while( ( KeyPad_getPressedKey() )!= '='){}
+
+	/*
+	 *clear the screen after finishing the required task
+	 */
+	LCD_clearScreen();
+
+} /*End of store_Password function*/
+/**************************************************************************************************/
+
+/***************************************************************************************************
+ * [Function Name]: start_System
+ *
+ * [Description]:  Function to start the system for the first time
+ *                 -Display welcome message for user
+ *                 -Ask him to enter the password 2 times
+ *                 -store the two passwords in two separate arrays
+ * [Args]:         NONE
+ *
+ * [In]            NONE
+ *
+ * [Out]           NONE
+ *
+ * [Returns]:      NONE
+ ***************************************************************************************************/
+void start_System(void)
+{
+
+	/*
+	 * First message to the user
+	 * appear in the first line in the LCD
+	 * force the cursor to begin from the second line
+	 * keep the message on the LCD for 5 seconds
+	 */
+	LCD_displayStringRowColumn(0,0,"First time to login");
+	LCD_goToRowColumn(1,0);
+	LCD_displayStringRowColumn(1,0,"Hello Admin");
+	_delay_ms(4000);
+
+
+	/*
+	 * get the password from the user
+	 * store it in the array g_password1
+	 */
+
+	store_Password(g_password1);
+	/*
+	 *   1-display a message for the user to "Submit password"
+	 *   2-force arrow of the LCD to go to the second line
+	 *   3-display a message for the user "Enter pass again"
+	 */
+	LCD_displayStringRowColumn(0,0,"Submit password");
+	LCD_goToRowColumn(1,0);
+	LCD_displayStringRowColumn(1,0,"Enter PASS. again.");
+
+	/*
+	 * keep the  message on LCD for 4 seconds
+	 * then clear the screen
+	 */
+	_delay_ms(4000);
+	LCD_clearScreen();
+
+	/*
+	 * get the password from the user again
+	 * and then store it in another array g_password2
+	 */
+	store_Password(g_password2);
+
+}/*End of start_System function*/
+/************************************************************************************************/
+
+
+/************************************************************************************************
+ *                                    TimerCallBack_Functions
+ ************************************************************************************************/
+
+/***************************************************************************************************
+ * [Function Name]: timerMoving_Anti_Clockwise
+ *
+ * [Description]:  Function to make LCD tell the user that the door is closing.
+ *
+ * [Args]:         NONE
+ *
+ * [In]            NONE
+ *
+ * [Out]           NONE
+ *
+ * [Returns]:      NONE
+ ***************************************************************************************************/
+void timerMoving_Anti_Clockwise(void)
+{
+	/*
+	 * increment the value of the global variable
+	 * every increase of it means that an interrupt of the occurs
+	 * every increase of it mans 1 second has passed
+	 */
+	g_tickFlag++;
+
+	/*
+	 * As long as g_tickFlag smaller than the value of maximum seconds
+	 * the LCD is remaining to display the same message
+	 */
+	if( g_tickFlag < MAXIMUM_SECONDS_ANTI_CLOCKWISE)
+	{
+		/*
+		 *   1-display a message for the user to "Door is .."
+		 *   2-force arrow of the LCD to go to the second line
+		 *   3-display a message for the user "Closing now!"
+		 */
+		LCD_displayStringRowColumn(0,0,"Door is..");
+		LCD_goToRowColumn(1,0);
+		LCD_displayStringRowColumn(1,0,"Closing now!");
+	}/*End of if condition*/
+
+	/*
+	 * As long as g_tickFlag reaches the maximum value of seconds
+	 * so the LCD will stop displaying the message
+	 */
+	else if(g_tickFlag == MAXIMUM_SECONDS_ANTI_CLOCKWISE)
+	{
+		/*
+		 * clear the LCD screen to stop displaying
+		 * the message for closing the door
+		 */
+		LCD_clearScreen();
+
+
+		/*
+		 *   1-display a message for the user to "Door is .."
+		 *   2-force arrow of the LCD to go to the second line
+		 *   3-display a message for the user "Closed now!"
+		 *   4-clear LCD Screen to be ready for any new message
+		 */
+		LCD_displayStringRowColumn(0,0,"Door is..");
+		LCD_goToRowColumn(1,0);
+		LCD_displayStringRowColumn(1,0,"Closed now!");
+		_delay_ms(4000);
+		LCD_clearScreen();
+
+		/*
+		 *DE-initialization of all the register of the timer
+		 *to be ready for another interrupts occur
+		 */
+		Timer_DeInit(Timer1);
+
+		/*
+		 * return the initial value of the global flag
+		 * to be ready for another interrupt occur
+		 */
+		g_tickFlag= 0;
+
+
+		/*
+		 * change the value of g_holdSystem variable to
+		 * log out from the polling on the time interrupt
+		 * and return to the remain parts of the application
+		 */
+		g_holdSystem = RESUME_SYSTEM;
+
+		/*
+		 * clear LCD screen after displaying the last message
+		 * "Door is closing now"
+		 */
+		LCD_clearScreen();
+	}/*End of else if condition*/
+
+}/*End of timerMoving_Anti_Clockwise function*/
+/**************************************************************************************************/
+
+/***************************************************************************************************
+ * [Function Name]: timerStopping
+ *
+ * [Description]:  Function to tell the user the door is opening for some time
+ *
+ * [Args]:         NONE
+ *
+ * [In]            NONE
+ *
+ * [Out]           NONE
+ *
+ * [Returns]:      NONE
+ ***************************************************************************************************/
+void timerStopping(void)
+{
+	/*
+	 * increment the value of the global variable
+	 * every increase of it means that an interrupt of the occurs
+	 * every increase of it mans 1 second has passed
+	 */
+	g_tickFlag++;
+
+	/*
+	 * As long as g_tickFlag smaller than the value of maximum seconds
+	 * the LCD is remaining to display the same message
+	 */
+	if( g_tickFlag < MAXIMUM_SECONDS_STOPPING)
+	{
+		LCD_displayStringRowColumn(0,0,"Door is..");
+		LCD_goToRowColumn(1,0);
+		LCD_displayStringRowColumn(1,0,"Open now!");
+	}/*end of if condition*/
+	/*
+	 * As long as g_tickFlag reaches the maximum value of seconds
+	 * so the LCD will stop displaying the message
+	 */
+	else if(g_tickFlag == MAXIMUM_SECONDS_STOPPING)
+	{
+		/*
+		 * return the initial value of the global flag
+		 * to be ready for another interrupt occur
+		 */
+		g_tickFlag=0;
+
+		/*
+		 * change the address of the function that the timer's ISR
+		 * will call after every interrupt to be the address of
+		 * the timerMoving_Anti_Clockwise function to make the
+		 * door moving on anti clock wise direction after stopping
+		 */
+		Timer_setCallBack(timerMoving_Anti_Clockwise, Timer1);
+
+		/*
+		 * clear LCD screen after displaying the last message
+		 * "Door is closing now"
+		 */
+		LCD_clearScreen();
+	}/*End of else if condition*/
+
+}/*End of timerStopping function*/
+/**************************************************************************************************/
+
+/***************************************************************************************************
+ * [Function Name]: timerMoving_Anti_Clockwise
+ *
+ * [Description]:  Function to make lcd tell the user that the door is openning.
+ *
+ * [Args]:         NONE
+ *
+ * [In]            NONE
+ *
+ * [Out]           NONE
+ *
+ * [Returns]:      NONE
+ ***************************************************************************************************/
+void timerMoving_Clockwise(void)
+{
+
+	/*
+	 * to keep the system into polling to prevent it from doing
+	 *  any thing until the operation of open door ends
+	 */
+	g_tickFlag++;
+
+	/*
+	 * As long as g_tickFlag smaller than the value of maximum seconds
+	 * the LCD is remaining to display the same message
+	 */
+	if( g_tickFlag < MAXIMUM_SECONDS_CLOCKWISE)
+	{
+		/*
+		 *   1-display a message for the user to "Door is .."
+		 *   2-force arrow of the LCD to go to the second line
+		 *   3-display a message for the user "Opening now!"
+		 */
+
+		LCD_displayStringRowColumn(0,0,"Door is..");
+		LCD_goToRowColumn(1,0);
+		LCD_displayStringRowColumn(1,0,"Opening!");
+	}/*End of if condition*/
+	/*
+	 * As long as g_tickFlag reaches the maximum value of seconds
+	 * so the LCD will stop displaying the message
+	 */
+	else if(g_tickFlag == MAXIMUM_SECONDS_CLOCKWISE)
+	{
+
+		/*
+		 * return the initial value of the global flag
+		 * to be ready for another interrupt occur
+		 */
+		g_tickFlag=0;
+
+		/*
+		 * change the address of the function that the timer's ISR
+		 * will call after every interrupt to be the address of
+		 * the timerMoving_Anti_Clockwise function to make the
+		 * door moving on anti clock wise direction after stopping
+		 */
+		Timer_setCallBack(timerStopping, Timer1);
+		/*
+		 * clear LCD screen after displaying the last message
+		 * "Door is opening now"
+		 */
+		LCD_clearScreen();
+
+	}/*End of else if condition*/
+
+}/*end of timerMoving_Clockwise function*/
+/*********************************************************************************************************/
+
+/*********************************************************************************************************
+ * [Function Name]: timerDanger
+ *
+ * [Description]:  Function to tell the hacking person he is thief
+ *
+ * [Args]:         NONE
+ *
+ * [In]            NONE
+ *
+ * [Out]           NONE
+ *
+ * [Returns]:      NONE
+ *****************************************************************************************************/
+void timerDanger(void)
+{
+	/*
+	 * to keep the system into polling to prevent it from doing
+	 *  any thing until the operation of open door ends
+	 */
+	g_tickFlag++;
+
+	/*
+	 * As long as g_tickFlag smaller than the value of maximum seconds
+	 * the LCD is remaining to display the same message
+	 */
+
+	if( g_tickFlag < MAXIMUM_SECONDS_BUZZER)
+	{
+		/*
+		 *   1-display a message for the user to "Exhaustion attempts"
+		 *   2-force arrow of the LCD to go to the second line
+		 *   3-display a message for the user "      THIEF!!     "
+		 */
+		LCD_displayStringRowColumn(0,0,"Exhaustion attempts");
+		LCD_goToRowColumn(1,0);
+		LCD_displayStringRowColumn(1,0,"      THIEF!!     ");
+	}
+	/*
+	 * As long as g_tickFlag reaches the maximum value of seconds
+	 * so the LCD will stop displaying the message
+	 */
+	else if(g_tickFlag == MAXIMUM_SECONDS_BUZZER )
+	{
+		/*
+		 * change the mode of the timer to return to the
+		 * initial state for all registers
+		 */
+		Timer_DeInit(Timer1);
+		/*
+		 * return the initial value of the global flag
+		 * to be ready for another interrupt occur
+		 */
+		g_tickFlag=0;
+
+		/*
+		 * change the value of g_holdSystem variable to
+		 * log out from the polling on the time interrupt
+		 * and return to the remain parts of the application
+		 */
+		g_holdSystem= RESUME_SYSTEM;
+		/*
+		 * clear LCD screen after displaying the last message
+		 * "Exhaustion attempts, THIEF!!"
+		 */
+		LCD_clearScreen();
+
+	}/*end of else if condition*/
+
+}/*End of timeDanger Function*/
+/**************************************************************************************************/
+
+
+

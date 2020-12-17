@@ -1,0 +1,42 @@
+18:35:26 **** Incremental Build of configuration Debug for project human_interface_ECU ****
+make all 
+Building file: ../timer.c
+Invoking: AVR Compiler
+avr-gcc -Wall -g2 -gstabs -O0 -fpack-struct -fshort-enums -ffunction-sections -fdata-sections -std=gnu99 -funsigned-char -funsigned-bitfields -mmcu=atmega16 -DF_CPU=1000000UL -MMD -MP -MF"timer.d" -MT"timer.o" -c -o "timer.o" "../timer.c"
+In file included from ../micro_config.h:24,
+                 from ../timer.h:18,
+                 from ../timer.c:12:
+c:/winavr-20100110/lib/gcc/../../avr/include/util/delay.h:90:3: warning: #warning "Compiler optimizations disabled; functions from <util/delay.h> won't work as designed"
+../timer.c: In function 'Timer_setCallBack':
+../timer.c:474: warning: function return types not compatible due to 'volatile'
+../timer.c:479: warning: function return types not compatible due to 'volatile'
+../timer.c:484: warning: function return types not compatible due to 'volatile'
+Finished building: ../timer.c
+ 
+Building target: human_interface_ECU.elf
+Invoking: AVR C Linker
+avr-gcc -Wl,-Map,human_interface_ECU.map -mmcu=atmega16 -o "human_interface_ECU.elf"  ./application_functions.o ./hmi_ecu.o ./keypad.o ./lcd.o ./timer.o ./uart.o   
+Finished building target: human_interface_ECU.elf
+ 
+Invoking: AVR Create Extended Listing
+avr-objdump -h -S human_interface_ECU.elf  >"human_interface_ECU.lss"
+Finished building: human_interface_ECU.lss
+ 
+Invoking: Print Size
+avr-size --format=avr --mcu=atmega16 human_interface_ECU.elf
+AVR Memory Usage
+----------------
+Device: atmega16
+
+Program:   16104 bytes (98.3% Full)
+(.text + .data + .bootloader)
+
+Data:        373 bytes (36.4% Full)
+(.data + .bss + .noinit)
+
+
+Finished building: sizedummy
+ 
+
+18:35:27 Build Finished. 0 errors, 4 warnings. (took 1s.481ms)
+

@@ -1,0 +1,24 @@
+/*
+ * buzzer.c
+ *
+ *  Created on: Dec 17, 2020
+ *      Author: Toka
+ */
+
+
+#include"buzzer.h"
+
+
+void Buzzer_On(void)
+{
+
+	SET_BIT(BUZZER_DATA_PORT , BUZZER_PIN );
+
+}/*end of function buzzer_on*/
+
+
+
+void Buzzer_Off(void)
+{
+	CLEAR_BIT(BUZZER_DATA_PORT , BUZZER_PIN);
+}/*end of function buzzer_off*/

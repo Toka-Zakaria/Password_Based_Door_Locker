@@ -1,0 +1,37 @@
+/*
+ * buzzer.c
+ *
+ *  Created on: Dec 17, 2020
+ *      Author: Toka
+ */
+
+
+#include"buzzer.h"
+
+/********************************************************************************
+ * [Function Name]: Buzzer_On
+ *
+ * [Description]:  Function to turn on the buzzer
+ *
+ * [Args]:         NONE
+ *
+ * [In]            NONE
+ *
+ * [Out]           NONE
+ *
+ * [Returns]:      NONE
+ *******************************************************************************/
+void Buzzer_On(void)
+{
+
+	SET_BIT(BUZZER_DATA_PORT , BUZZER_PIN );
+
+}/*end of function buzzer_on*/
+
+
+
+void Buzzer_Off(void)
+{
+	CLEAR_BIT(BUZZER_DATA_PORT , BUZZER_PIN);
+
+}/*end of function buzzer_off*/

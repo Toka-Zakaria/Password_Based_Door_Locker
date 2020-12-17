@@ -1,0 +1,28 @@
+/*
+ * motor.h
+ *
+ *  Created on: Dec 17, 2020
+ *      Author: Toka
+ */
+
+#ifndef MOTOR_H_
+#define MOTOR_H_
+
+#include "std_types.h"
+#include "micro_config.h"
+#include "common_macros.h"
+
+
+
+#define MOTOR_DIRECTION_PORT                  DDRA
+#define MOTOR_PIN_IN1                          PA3
+#define MOTOR_PIN_IN2                          PA4
+#define MOTOR_PIN_EN1
+#define MOTOR_DATA_PORT                      PORTA
+#define MOTOR_PIN_IN3
+#define MOTOR_PIN_IN4
+#define MOTOR_PIN_EN2
+
+
+
+#endif /* MOTOR_H_ */

@@ -1,0 +1,16 @@
+/*
+ * motor.h
+ *
+ *  Created on: Dec 17, 2020
+ *      Author: Toka
+ */
+
+#ifndef MOTOR_H_
+#define MOTOR_H_
+
+#include "std_types.h"
+#include "micro_config.h"
+#include "common_macros.h"
+
+
+#endif /* MOTOR_H_ */

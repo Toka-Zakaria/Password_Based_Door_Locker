@@ -1,0 +1,30 @@
+/*
+ * motor.c
+ *
+ *  Created on: Dec 17, 2020
+ *      Author: Toka
+ */
+
+
+
+
+/***************************************************************************************************
+ * [Function Name]: motor_on_ClockWise
+ *
+ * [Description]:  Function to make the motor move on clockwise direction
+ *
+ * [Args]:         NONE
+ *
+ * [In]            NONE
+ *
+ * [Out]           NONE
+ *
+ * [Returns]:      NONE
+ ***************************************************************************************************/
+
+void motor_on_ClockWise(void)
+{
+	MOTOR_DATA_PORT = CLEAR_BIT(MOTOR_DATA_PORT , MOTOR_PIN_IN1);
+	MOTOR_DATA_PORT = SET_BIT(MOTOR_DATA_PORT , MOTOR_PIN_IN2);
+
+}/*End of motor_onClockWise*/

@@ -1,0 +1,88 @@
+/*
+ * application_functions.h
+ *
+ *  Created on: Nov 28, 2020
+ *      Author: Toka
+ */
+
+#ifndef APPLICATION_FUNCTIONS_H_
+#define APPLICATION_FUNCTIONS_H_
+
+#include "std_types.h"
+#include "micro_config.h"
+#include "common_macros.h"
+
+#include"keyPad.h"
+#include"lcd.h"
+#include"uart.h"
+#include"timer.h"
+
+
+
+#define ECU_READY               0x10
+#define FIRST_TIME_TO_LOG_IN     1
+
+#define ALLOWED_TRIES_TO_ENTER_PASSWORD   3
+
+#define NO_DANGER                 0
+
+#define MISMATCH                 1
+#define MATCH                    0
+
+#define START_VALUE             0
+#define COMPARE_VALUE           8000
+
+#define CHOICE_1                1
+#define CHOICE_2                2
+
+#define INITIAL_VALUE           0
+#define PASSWORD_WIDTH          5
+
+#define MISMATCH_OCCUR          1
+
+#define MAXIMUM_SECONDS_ANTI_CLOCKWISE         15
+#define MAXIMUM_SECONDS_STOPPING                5
+#define MAXIMUM_SECONDS_CLOCKWISE              15
+#define MAXIMUM_SECONDS_BUZZER                  15
+
+
+#define RESUME_SYSTEM           0
+#define HOLD_SYSTEM             1
+
+
+
+extern uint8 g_tickFlag;
+
+extern uint8 g_holdSystem;
+
+//extern uint8 g_buzzer;
+
+extern uint8 g_password1[5];
+
+extern uint8 g_password2[5];
+
+
+
+
+uint8 select_Option (void);
+
+uint8 password_checkMismatch(uint8* pass1, uint8* pass2);
+
+void store_Password(uint8 *pass);
+
+
+void timerMoving_Anti_Clockwise(void);
+
+void timerStopping(void);
+
+void timerMoving_Clockwise(void);
+
+void timerDanger(void);
+
+void start_System(void);
+
+
+
+
+
+#endif /* APPLICATION_FUNCTIONS_H_ */

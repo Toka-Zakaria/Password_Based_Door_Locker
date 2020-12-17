@@ -1,0 +1,93 @@
+/*
+ * application_functions.h
+ *
+ *  Created on: Nov 29, 2020
+ *      Author: Toka
+ */
+
+#ifndef APPLICATION_FUNCTIONS_H_
+#define APPLICATION_FUNCTIONS_H_
+
+#include "std_types.h"
+#include "micro_config.h"
+#include "common_macros.h"
+
+#include"external_eeprom.h"
+#include"timer.h"
+#include "uart.h"
+
+
+
+
+#define MISMATCH                1
+#define MATCH                   0
+#define NO_DANGER               0
+
+#define FIRST_ADDRESS_TO_STORE_PASSWORD     0X0312
+
+#define BUZZER_DIRECTION_PORT      DDRA
+#define BUZZER_PIN                PA0
+#define BUZZER_DATA_PORT         PORTA
+
+#define MOTOR_DIRECTION_PORT       DDRA
+
+#define MOTOR_PIN_IN1  PA3
+#define MOTOR_PIN_IN2  PA4
+#define MOTOR_PIN_EN1
+
+#define MOTOR_DATA_PORT     PORTA
+#define MOTOR_PIN_IN3
+#define MOTOR_PIN_IN4
+#define MOTOR_PIN_EN2
+
+
+
+#define FIRST_TIME_TO_LOG_IN           1
+#define ANY_TIME_TO_LOG_IN             0
+
+#define CHOICE_1                       1
+#define CHOICE_2                       2
+
+#define INITIAL_VALUE           0
+#define PASSWORD_WIDTH          5
+
+#define MISMATCH_OCCUR          1
+
+#define MAXIMUM_SECONDS_ANTI_CLOCKWISE         15
+#define MAXIMUM_SECONDS_STOPPING                5
+#define MAXIMUM_SECONDS_CLOCKWISE              15
+#define MAXIMUM_SECONDS_BUZZER                  15
+
+
+#define RESUME_SYSTEM           0
+#define HOLD_SYSTEM             1
+
+#define START_VALUE     0
+#define COMPARE_VALUE   8000
+#define ECU_READY 0x10
+
+
+
+
+extern uint8 g_tickFlag;
+
+extern uint8 g_holdSystem;
+
+extern uint8 buzzer;
+
+
+
+uint8 password_checkMismatch(uint8* pass1, uint8* pass2);
+
+void motor_on_ClockWise(void);
+void motor_onAnti_ClockWise(void);
+void motor_on_Stop(void);
+
+void timerMoving_Anti_Clockwise(void);
+void timerStopping(void);
+void timerMoving_Clockwise(void);
+void timerDanger(void);
+
+
+
+#endif /* APPLICATION_FUNCTIONS_H_ */

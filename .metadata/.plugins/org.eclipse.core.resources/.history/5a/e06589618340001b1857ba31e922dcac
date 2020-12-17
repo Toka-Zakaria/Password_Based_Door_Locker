@@ -1,0 +1,30 @@
+/*
+ * buzzer.h
+ *
+ *  Created on: Dec 17, 2020
+ *      Author: Toka
+ */
+
+#ifndef BUZZER_H_
+#define BUZZER_H_
+
+
+#include "std_types.h"
+#include "micro_config.h"
+#include "common_macros.h"
+
+
+#define BUZZER_DIRECTION_PORT                 DDRA
+#define BUZZER_PIN                             PA0
+#define BUZZER_DATA_PORT                     PORTA
+
+
+
+void Buzzer_On(void);
+
+void Buzzer_Off(void);
+
+
+
+
+#endif /* BUZZER_H_ */

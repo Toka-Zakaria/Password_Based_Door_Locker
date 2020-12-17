@@ -1,0 +1,652 @@
+/**********************************************************************************
+ * [FILE NAME]: control_ecu.c
+ *
+ * [AUTHOR]: Toka Zakaria Mohamed Ramadan
+ *
+ * [DATE CREATED]: Nov 5, 2020
+ *
+ * [Description]: Application to control the control ECU
+ *
+ ***********************************************************************************/
+
+
+#include"application_functions.h"
+
+
+/******************************************************************************************
+ *                                      Global Variables
+ *****************************************************************************************/
+
+/*
+ * variable to use it in the functions call back in of the timer
+ * use it as a counter for seconds
+ */
+uint8 g_tickFlag=0;
+
+/*
+ * variable to use it to hold the system with no work
+ * while the door opening and closing
+ */
+uint8 g_holdSystem = HOLD_SYSTEM;
+
+/***************************************************************************************/
+
+/******************************************************************************************
+ *                                   START OF THE PROGRAM
+ *****************************************************************************************/
+
+int main(void)
+{
+	/******************************************************************************************
+	 *                                      INITIALIZATION
+	 *****************************************************************************************/
+
+	/*
+	 *local variable to store the checking byte from the control ECU
+	 * to check if it is first time to run the program or not
+	 */
+	uint8 systemStarting = 0;
+
+	/*
+	 * local variable to use it as counter in the loops
+	 */
+	uint8 counter;
+
+	/*
+	 *local variable to store the value of checking of
+	 * the two passwords entered
+	 * check if their are match each other or not
+	 */
+	uint8 pass_match;
+
+	/*
+	 *array to store the first password in it
+	 *and to store the password if user change it
+	 *and use it to store the password in EEPROM
+	 */
+
+	uint8 password_Stored[PASSWORD_WIDTH];
+	uint8 password_compare[PASSWORD_WIDTH];
+	uint8 compare=0;      /*variable to use it to read the value in the external memory*/
+
+	/*
+	 * local variable to store the value of the option selected
+	 * from the two options of changing password or open the door
+	 */
+	uint8 decision;
+
+	/*
+	 * local variable to use it to increment the numbers of
+	 * tries to enter the password wrong not equal to stored password
+	 * give it initial value by 0 assuming no error in entered password as first
+	 */
+	uint8 danger_error = NO_DANGER;
+
+	/*
+	 * local variable to use it to force the program to begin from the first
+	 *  super loop if the password entered wrong for 3 times to
+	 *  to prevent the program return from the same sequence after thief event occur
+	 */
+	uint8 restart_mainProgram = FALSE;
+
+	/*
+	 * initialize the configure structure of the timer
+	 * choosing value in order to form the structure
+	 */
+	Timer_ConfigType timer={START_VALUE, COMPARE_VALUE, Timer1, F_CPU_1024, Compare};
+
+	/*
+	 * initialize the configure structure of UART
+	 * choosing value in order to form the structure
+	 */
+	UART_config uart = {BIT_8, DISABLE, STOP_BIT_1};
+
+	/*
+	 * initialize UART module to begin
+	 * pass to it the address of the uart structure
+	 * to substitute with its value in the init function
+	 */
+	UART_init(&uart);
+
+	/*
+	 * enable the interrupt bit in the SREG register
+	 * to be ready for any interrupt occur
+	 */
+	SREG |= (1<<7);
+
+	/*
+	 * Initialize EEPROM module to begin
+	 * to be ready to store any value in it
+	 */
+	EEPROM_init();
+
+	/*
+	 * Configure Buzzer pin as output pin
+	 * set initial value to the Buzzer for beginning
+	 * the program as off mode
+	 */
+	BUZZER_DIRECTION_PORT = SET_BIT(BUZZER_DIRECTION_PORT, BUZZER_PIN);
+	BUZZER_DATA_PORT = CLEAR_BIT(BUZZER_DATA_PORT, BUZZER_PIN);
+
+	/*
+	 * Configure Motor pins as output pin
+	 * set initial value to the motor pins
+	 * for beginning the program as stop mode
+	 */
+	MOTOR_DIRECTION_PORT = SET_BIT(MOTOR_DIRECTION_PORT,MOTOR_PIN_IN1 );
+	MOTOR_DIRECTION_PORT = SET_BIT(MOTOR_DIRECTION_PORT,MOTOR_PIN_IN2 );
+
+	MOTOR_DATA_PORT = CLEAR_BIT( MOTOR_DATA_PORT, MOTOR_PIN_IN2);
+	MOTOR_DATA_PORT = CLEAR_BIT( MOTOR_DATA_PORT, MOTOR_PIN_IN1);
+
+	/******************************************************************************************
+	 *                                      INITIALIZATION
+	 *****************************************************************************************/
+
+	/*
+	 * read the value in address FIRST_ADDRESS_TO_STORE_PASSWORD
+	 * and store its value in a variable to check if
+	 * it is first time to use the program or not
+	 */
+	EEPROM_readByte(FIRST_ADDRESS_TO_STORE_PASSWORD, &systemStarting);
+
+
+	/******************************************************************************************
+	 *                      STAGE (1): First time to log in the program
+	 *****************************************************************************************/
+
+	/*
+	 * if it is the first time to run the system
+	 * the stored value in the address will be 0xff
+	 */
+	if(systemStarting == 0XFF)
+	{
+		/*
+		 * wait for the HMI ECU to be ready to
+		 * send the password to it byte by byte using UART
+		 */
+		while(UART_recieveByte() != ECU_READY){}
+		UART_sendByte(FIRST_TIME_TO_LOG_IN);
+
+
+		/*
+		 * receive the password from the HMI ECU
+		 * store it in array to be able to compare it with
+		 * other entered passwords, then stored it in the EEPROM
+		 */
+
+		for(counter = INITIAL_VALUE; counter< PASSWORD_WIDTH; counter++)
+		{
+			/*
+			 * tell HMI ECU that control is ready to receive the
+			 * password byte byte
+			 */
+			UART_sendByte(ECU_READY);
+			/*
+			 *store byte byte in the array until fill
+			 *store it with the password digits
+			 */
+			password_Stored[counter]= UART_recieveByte();
+
+			/*
+			 * store the password in the EEPROM in required address
+			 * in the EEPROM to avoid loss the entered password in
+			 * other times to log in
+			 */
+			EEPROM_writeByte( (FIRST_ADDRESS_TO_STORE_PASSWORD | counter) , password_Stored[counter]);
+
+			/*
+			 * wait 80 ms to give chance for the EEPROM to write the
+			 * password bytes in the certain locations
+			 */
+			_delay_ms(80);
+
+		}/*End of for loop to store the password in the array and EEPROM*/
+
+#if 0
+		/*
+		 * store the password in the EEPROM in required address
+		 * in the EEPROM to avoid loss the entered password in
+		 * other times to log in
+		 */
+		for(counter = INITIAL_VALUE; counter<PASSWORD_WIDTH; counter++)
+		{
+			EEPROM_writeByte( (FIRST_ADDRESS_TO_STORE_PASSWORD | counter) , password_Stored[counter]);
+
+			/*
+			 * wait 80 ms to give chance for the EEPROM to write the
+			 * password bytes  in the certain locations
+			 */
+			_delay_ms(80);
+		}/*End of for loop to store the password in the memory*/
+
+#endif
+
+	}/*end for default value in EEPPROM*/
+
+	/*
+	 * if the location of password address in the EEPROM
+	 * is equal to any thing except 0xff
+	 * it will start the program from the selecting choice
+	 */
+	else
+	{
+		/*
+		 * wait for the HMI ECU to be ready to
+		 * send the password to it byte by byte using UART
+		 */
+		while(UART_recieveByte() != ECU_READY){}
+		UART_sendByte(ANY_TIME_TO_LOG_IN);
+
+	}/*end of any other time except first time*/
+
+	/******************************************************************************************
+	 *                                    ANYTIME TO LOGIN
+	 *                                       SUPER LOOP
+	 *****************************************************************************************/
+
+	while(1)
+	{
+
+		/******************************************************************************************
+		 *            STAGE (2): Any time of the program ask user to select option
+		 *****************************************************************************************/
+
+		/*
+		 * tell HMI ECU that control is ready to receive the
+		 * selected option byte
+		 */
+		UART_sendByte(ECU_READY);
+		/*
+		 * store the received decision in a variable to
+		 * check if it is required to do first choice
+		 * or to do second choice
+		 */
+		decision = UART_recieveByte();
+
+
+		/******************************************************************************************
+		 *                  STAGE (3): Change the password of the system
+		 *****************************************************************************************/
+
+		/*
+		 * option to change the password if the selected
+		 * option is first choice
+		 */
+		if(decision == CHOICE_1)
+		{
+
+			/******************************************************************************************
+			 *                STAGE (3-1): Steps to check if user is the Owner or not
+			 *****************************************************************************************/
+			do
+			{
+				/*
+				 *receive the required password to store in the non-volatile memory
+				 *store it in an array at first
+				 */
+
+				for(counter = INITIAL_VALUE; counter< PASSWORD_WIDTH; counter++)
+				{
+					/*
+					 * tell HMI ECU that control is ready to receive the
+					 * password byte byte
+					 */
+					UART_sendByte(ECU_READY);
+					/*
+					 *store byte byte in the array until fill
+					 *store it with the password digits
+					 */
+					password_compare[counter]= UART_recieveByte();
+					/*
+					 * wait 80 ms to give chance for the EEPROM to write the
+					 * password bytes  in the certain locations
+					 */
+					_delay_ms(80);
+				}/*End of for loop to store the received password in the array*/
+
+
+				/*
+				 *read the stored password from the EEPROM digit by digit
+				 *storing the digit in the a variable
+				 *storing the store it in the array
+				 *delay some time to give chance for the EEPROM to read values
+				 */
+				for (counter = INITIAL_VALUE; counter < PASSWORD_WIDTH; counter++)
+				{
+
+					EEPROM_readByte( (FIRST_ADDRESS_TO_STORE_PASSWORD | counter) , &compare );
+
+					password_Stored[counter]= compare;
+
+					_delay_ms(80);
+
+				}/*End of the for loop to read the data from EEPROM*/
+
+				/*
+				 * passwords has been filled from the user inputs and stored password
+				 * from EEPROM
+				 * send them to the password_checkMismatch function to check if
+				 * there is mismatch between them them or not
+				 */
+				pass_match= password_checkMismatch(password_Stored, password_compare);
+
+
+				/*
+				 * Actions if there is a mismatch between the two entered passwords
+				 */
+				if(pass_match == MISMATCH)
+				{
+					/*
+					 * wait for the HMI ECU to be ready to
+					 * send the password to it byte by byte using UART
+					 */
+					while(UART_recieveByte() != ECU_READY){}
+					UART_sendByte(pass_match);
+
+					/*
+					 *increment the danger_error to be indicator for number of
+					 *valid tries to let the user be able to enter the pass
+					 */
+					danger_error++;
+					/*
+					 *if the user exhaust all valid tries to enter the
+					 *password, it will stop all the system as the system
+					 *realize from that a strange one tries to hack the system
+					 */
+
+					/******************************************************************************************
+					 *                                THIEF MODE in STAGE (3-1)
+					 *****************************************************************************************/
+					if(danger_error == ALLOWED_TRIES_TO_ENTER_PASSWORD)
+					{
+						/*
+						 * call the function Timer_setCallBack and give it
+						 * the address of function timerdanger to force the timer ISR
+						 * to call this function every interrupt occur, "every one second"
+						 */
+						Timer_setCallBack(timerDanger, Timer1);
+
+						/*
+						 * Start the timer to count
+						 * give it the address of the declared structure
+						 * to put its values in the initialization function
+						 * in the entire registers of the timer
+						 */
+						Timer_init(&timer);
+
+						/*
+						 *pooling to hold the whole program until the thief event finished
+						 * to make all peripherals keyPad , LCD pooled with no work
+						 * until the action of Buzzer ends successfully
+						 */
+						while(g_holdSystem != RESUME_SYSTEM){}
+
+						/*
+						 * return the state of the g_holdSystem to be hold again
+						 * after being RESUME to be ready for any required
+						 * action to hold the system again
+						 */
+						g_holdSystem = HOLD_SYSTEM;
+
+						/*
+						 * change the state of the restart main program to TRUE state
+						 * to terminate from the while loop and make
+						 * the force the program to start from the basic options
+						 */
+						restart_mainProgram = TRUE;
+
+					}/*end of danger_error condition*/
+
+				}/*End of pass_match condition*/
+
+			}while( (pass_match== MISMATCH) && restart_mainProgram == FALSE);
+
+			/******************************************************************************************
+			 *              STAGE (3-2): Allow owner to change the password to a new one
+			 *****************************************************************************************/
+			/*
+			 *if there is no difference between the entered password
+			 *and the password stored in the EEPROM
+			 */
+			if(pass_match == MATCH)
+			{
+				/*
+				 * wait for the HMI ECU to be ready to
+				 * send the password to it byte by byte using UART
+				 */
+				while(UART_recieveByte() != ECU_READY){}
+				UART_sendByte(pass_match);
+
+
+				/*
+				 * receive the password from the HMI ECU
+				 * store it in array to be able to compare it with
+				 * other entered passwords, then stored it in the EEPROM
+				 */
+
+				for(counter = INITIAL_VALUE; counter< PASSWORD_WIDTH; counter++)
+				{
+					/*
+					 * tell HMI ECU that control is ready to receive the
+					 * password byte byte
+					 */
+					UART_sendByte(ECU_READY);
+					/*
+					 *store byte byte in the array until fill
+					 *store it with the password digits
+					 */
+					password_Stored[counter]= UART_recieveByte();
+
+					/*
+					 * store the password in the EEPROM in required address
+					 * in the EEPROM to avoid loss the entered password in
+					 * other times to log in
+					 */
+					EEPROM_writeByte( (FIRST_ADDRESS_TO_STORE_PASSWORD | counter) , password_Stored[counter]);
+
+					/*
+					 * wait 80 ms to give chance for the EEPROM to write the
+					 * password bytes in the certain locations
+					 */
+					_delay_ms(80);
+
+				}/*End of for loop to store the password in the array*/
+
+
+			}/*pass_error = MATCH condition*/
+
+			/*
+			 *  return the state of danger mode to the default after restart the
+			 *  program from first again, to keep the chances to enter the password
+			 *  maximum times and to give the chance to enable thief mode again
+			 */
+			danger_error = NO_DANGER;
+
+		}/*End of choice 1*/
+
+		/******************************************************************************************
+		 *                             STAGE (4): OPEN THE DOOR
+		 *****************************************************************************************/
+		/*
+		 * option to change the password if the selected
+		 * option is second choice
+		 */
+		else if(decision == CHOICE_2)
+		{
+
+			/******************************************************************************************
+			 *                STAGE (4-1): Steps to check if user is the Owner or not
+			 *****************************************************************************************/
+
+			/*
+			 * usage of do-while as it is required to ask him to
+			 * enter the password at first at least one time
+			 */
+			do
+			{
+				/*
+				 *receive the required password to store in the non-volatile memory
+				 *store it in an array at first
+				 */
+
+				for(counter = INITIAL_VALUE; counter< PASSWORD_WIDTH; counter++)
+				{
+					/*
+					 * tell HMI ECU that control is ready to receive the
+					 * password byte byte
+					 */
+					UART_sendByte(ECU_READY);
+					/*
+					 *store byte byte in the array until fill
+					 *store it with the password digits
+					 */
+					password_compare[counter]= UART_recieveByte();
+					/*
+					 * wait 80 ms to give chance for the EEPROM to write the
+					 * password bytes  in the certain locations
+					 */
+					_delay_ms(80);
+				}/*End of for loop to store the received password in the array*/
+
+
+				/*
+				 *read the stored password from the EEPROM digit by digit
+				 *storing the digit in the a variable
+				 *storing the store it in the array
+				 *delay some time to give chance for the EEPROM to read values
+				 */
+				for (counter = INITIAL_VALUE; counter < PASSWORD_WIDTH; counter++)
+				{
+
+					EEPROM_readByte( (FIRST_ADDRESS_TO_STORE_PASSWORD | counter) , &compare );
+
+					password_Stored[counter]= compare;
+
+					_delay_ms(80);
+
+				}/*End of the for loop to read the data from EEPROM*/
+
+				/*
+				 * passwords has been filled from the user inputs and stored password
+				 * from EEPROM
+				 * send them to the password_checkMismatch function to check if
+				 * there is mismatch between them them or not
+				 */
+				pass_match= password_checkMismatch(password_Stored, password_compare);
+
+
+				/*
+				 * Actions if there is a mismatch between the two entered passwords
+				 */
+				if(pass_match == MISMATCH)
+				{
+					/*
+					 * wait for the HMI ECU to be ready to
+					 * send the password to it byte by byte using UART
+					 */
+					while(UART_recieveByte() != ECU_READY){}
+					UART_sendByte(pass_match);
+
+					/*
+					 *increment the danger_error to be indicator for number of
+					 *valid tries to let the user be able to enter the pass
+					 */
+					danger_error++;
+					/*
+					 *if the user exhaust all valid tries to enter the
+					 *password, it will stop all the system as the system
+					 *realize from that a strange one tries to hack the system
+					 */
+
+					/******************************************************************************************
+					 *                                THIEF MODE in STAGE (3-1)
+					 *****************************************************************************************/
+					if(danger_error == ALLOWED_TRIES_TO_ENTER_PASSWORD)
+					{
+						/*
+						 * call the function Timer_setCallBack and give it
+						 * the address of function timerdanger to force the timer ISR
+						 * to call this function every interrupt occur, "every one second"
+						 */
+						Timer_setCallBack(timerDanger, Timer1);
+
+						/*
+						 * Start the timer to count
+						 * give it the address of the declared structure
+						 * to put its values in the initialization function
+						 * in the entire registers of the timer
+						 */
+						Timer_init(&timer);
+
+						/*
+						 *pooling to hold the whole program until the thief event finished
+						 * to make all peripherals keyPad , LCD pooled with no work
+						 * until the action of Buzzer ends successfully
+						 */
+						while(g_holdSystem != RESUME_SYSTEM){}
+
+						/*
+						 * return the state of the g_holdSystem to be hold again
+						 * after being RESUME to be ready for any required
+						 * action to hold the system again
+						 */
+						g_holdSystem = HOLD_SYSTEM;
+
+						/*
+						 * change the state of the restart main program to TRUE state
+						 * to terminate from the while loop and make
+						 * the force the program to start from the basic options
+						 */
+						restart_mainProgram = TRUE;
+
+					}/*end of danger_error condition*/
+
+				}/*End of pass_match condition*/
+
+			}while( (pass_match== MISMATCH) && restart_mainProgram == FALSE);
+
+			/*matching passwords*/
+			if(pass_match == MATCH)
+			{
+				/*
+				 * wait for the HMI ECU to be ready to
+				 * send the password to it byte by byte using UART
+				 */
+				while(UART_recieveByte() != ECU_READY){}
+				UART_sendByte(pass_match);
+
+				/*********************the right to open the door*********************/
+				Timer_setCallBack(timerMoving_Clockwise, Timer1);
+				Timer_init(&timer);
+				/*to hold the system until the openning and closing the door occur*/
+				while(g_holdSystem != RESUME_SYSTEM){}
+				g_holdSystem = HOLD_SYSTEM;
+				/*******************************************************************/
+
+			}/*pass_match = MATCH*/
+
+			/*
+			 *  return the state of danger mode to the default after restart the
+			 *  program from first again, to keep the chances to enter the password
+			 *  maximum times and to give the chance to enable thief mode again
+			 */
+			danger_error = NO_DANGER;
+
+		}/*end of choice 2*/
+
+		restart_mainProgram = 0;
+	}/*End of SUPER loop*/
+
+}/*End of main*/
+
+
+
+
+
+
+
+
+
+
+

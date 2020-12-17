@@ -1,0 +1,227 @@
+/**********************************************************************************
+ * [FILE NAME]: application_functions.h
+ *
+ * [AUTHOR]: Toka Zakaria Mohamed Ramadan
+ *
+ * [DATE CREATED]: Nov 5, 2020
+ *
+ * [Description]:File of All types Declaration and Functions prototypes of timer
+ *                configuration.
+ *
+ *
+ ***********************************************************************************/
+
+#ifndef APPLICATION_FUNCTIONS_H_
+#define APPLICATION_FUNCTIONS_H_
+
+#include "std_types.h"
+#include "micro_config.h"
+#include "common_macros.h"
+#include"external_eeprom.h"
+#include"timer.h"
+#include "uart.h"
+
+/*******************************************************************************
+ *                      Preprocessor Macros                                    *
+ *******************************************************************************/
+
+
+#define MISMATCH                                1
+#define MATCH                                   0
+#define NO_DANGER                               0
+
+#define FIRST_ADDRESS_TO_STORE_PASSWORD     0X0312
+
+#define BUZZER_DIRECTION_PORT                 DDRA
+#define BUZZER_PIN                             PA0
+#define BUZZER_DATA_PORT                     PORTA
+
+#define MOTOR_DIRECTION_PORT                  DDRA
+#define MOTOR_PIN_IN1                          PA3
+#define MOTOR_PIN_IN2                          PA4
+#define MOTOR_PIN_EN1
+#define MOTOR_DATA_PORT                      PORTA
+#define MOTOR_PIN_IN3
+#define MOTOR_PIN_IN4
+#define MOTOR_PIN_EN2
+
+
+
+#define FIRST_TIME_TO_LOG_IN                    1
+#define ANY_TIME_TO_LOG_IN                      0
+
+#define CHOICE_1                                1
+#define CHOICE_2                                2
+
+#define ALLOWED_TRIES_TO_ENTER_PASSWORD         3
+
+#define INITIAL_VALUE                           0
+#define PASSWORD_WIDTH                          5
+
+#define MISMATCH_OCCUR                          1
+#define MAXIMUM_SECONDS_ANTI_CLOCKWISE         15
+#define MAXIMUM_SECONDS_STOPPING                5
+#define MAXIMUM_SECONDS_CLOCKWISE              15
+#define MAXIMUM_SECONDS_BUZZER                 15
+
+
+#define RESUME_SYSTEM                           0
+#define HOLD_SYSTEM                             1
+
+#define START_VALUE                             0
+#define COMPARE_VALUE                        8000
+#define ECU_READY                            0x10
+
+
+/*******************************************************************************
+ *                        External variables                                   *
+ *******************************************************************************/
+
+/*
+ * variable to use it in the functions call back in of the timer
+ * use it as a counter for seconds
+ */
+extern uint8 g_tickFlag;
+
+/*
+ * variable to use it to hold the system with no work
+ * while the door opening and closing
+ */
+extern uint8 g_holdSystem;
+/*******************************************************************************
+ *                      Functions Prototypes                                   *
+ *******************************************************************************/
+/*******************************************************************************
+ * [Function Name]: password_checkMismatch
+ *
+ * [Description]:  Function to check if the two passwords equal
+ *                 or not.
+ *
+ * [Args]:         pass1, pass2
+ *
+ * [In]            pass1: Pointer to character
+ *                 pass2: Pointer to character
+ *
+ * [Out]           unsigned char
+ *
+ * [Returns]:     the result of the comparing the two passwords
+ ********************************************************************************/
+uint8 password_checkMismatch(uint8* pass1, uint8* pass2);
+/********************************************************************************
+ * [Function Name]: motor_on_ClockWise
+ *
+ * [Description]:  Function to make the motor move on clockwise direction
+ *
+ * [Args]:         NONE
+ *
+ * [In]            NONE
+ *
+ * [Out]           NONE
+ *
+ * [Returns]:      NONE
+ *******************************************************************************/
+void motor_on_ClockWise(void);
+/*********************************************************************************
+ * [Function Name]: motor_on_AntiClockWise
+ *
+ * [Description]:  Function to make the motor move on  Anti clockwise direction
+ *
+ * [Args]:         NONE
+ *
+ * [In]            NONE
+ *
+ * [Out]           NONE
+ *
+ * [Returns]:      NONE
+ *********************************************************************************/
+void motor_onAnti_ClockWise(void);
+/*********************************************************************************
+ * [Function Name]: motor_on_ClockWise
+ *
+ * [Description]:  Function to make the motor stop moving.
+ *
+ * [Args]:         NONE
+ *
+ * [In]            NONE
+ *
+ * [Out]           NONE
+ *
+ * [Returns]:      NONE
+ *********************************************************************************/
+void motor_on_Stop(void);
+/**********************************************************************************
+ * [Function Name]: timerMoving_Anti_Clockwise
+ *
+ * [Description]:  Function to increment the a counter for certain number of seconds
+ *                 to keep the motor moving on Anti-ClockWise direction until these
+ *                 seconds finish. it act as the door of the system is closing for
+ *                 some time.after it has finished, it would return the counter and timer
+ *                 to initial value, call function to force the motor to stop and
+ *                 resumes the system again to allow it to restart after holding this time.
+ *
+ *
+ * [Args]:         NONE
+ *
+ * [In]            NONE
+ *
+ * [Out]           NONE
+ *
+ * [Returns]:      NONE
+ ***********************************************************************************/
+void timerMoving_Anti_Clockwise(void);
+/**********************************************************************************
+ * [Function Name]: timerStopping
+ *
+ * [Description]:  Function to hold the motor stopped for some time, indicate to the door
+ *                 is open, after time has finished, it would call another function to force it
+ *                 to move in Anti-ClockWise direction and return the counter to initial value
+ *
+ * [Args]:         NONE
+ *
+ * [In]            NONE
+ *
+ * [Out]           NONE
+ *
+ * [Returns]:      NONE
+ **********************************************************************************/
+void timerStopping(void);
+/***********************************************************************************
+ * [Function Name]: timerMoving_Clockwise
+ *
+ * [Description]:  Function to increment the a counter for certain number of seconds
+ *                 to keep the motor moving on ClockWise direction until these
+ *                 seconds finish.it act as the door of the system is opening for
+ *                 some time.
+ *
+ * [Args]:         NONE
+ *
+ * [In]            NONE
+ *
+ * [Out]           NONE
+ *
+ * [Returns]:      NONE
+ *********************************************************************************/
+void timerMoving_Clockwise(void);
+/**********************************************************************************
+ * [Function Name]: timerDanger
+ *
+ * [Description]:  Function to increment the counter to keep the Buzzer working
+ *                 for some time and , after the time passed it stopped the buzzer,return counter
+ *                 to initial value to be ready for any buzzer state occur and
+ *                 resumes the system again to allow it to restart after holding this time,
+ *                 and return the timer to default again.
+ *
+ *
+ * [Args]:         NONE
+ *
+ * [In]            NONE
+ *
+ * [Out]           NONE
+ *
+ * [Returns]:      NONE
+ **********************************************************************************/
+void timerDanger(void);
+
+
+
+#endif /* APPLICATION_FUNCTIONS_H_ */

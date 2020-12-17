@@ -1,0 +1,777 @@
+/****************************************************************************************
+ * [FILE NAME]: hmi_ecu.c
+ *
+ * [AUTHOR]: Toka Zakaria Mohamed Ramadan
+ *
+ * [DATE CREATED]: Nov 5, 2020
+ *
+ * [Description]: Application to manage ATmega16 MCU connected to LCD and Keypad
+ *                The sequence of the code as follow:
+ *                    -Display welcome message to the user at first time to log in
+ *                    -Ask user to enter the password for first time using keypad
+ *                    -Display message to submit the password
+ *                    -Ask him to enter the password again using keypad
+ *                    -Display message that the password saved
+ *                    -Ask him to choose option from two options
+ *                       -option 1 to change the password:
+ *                         -Ask him to enter the old password to check is it owner or not
+ *                         -if entered password is correct allow him to change the password
+ *                          and repeat the same steps of first time to log in
+ *                         -if entered password is incorrect display message that is not valid
+ *                         -give him no of chances to enter the password
+ *                         -if tries exceed no of chances hold the program from working
+ *                          and display message that is thief tries to hack the system
+ *                       -option 2 to open the door:
+ *                         -Ask him to enter the old password to check is it owner or not
+ *                         -if entered password is correct allow him to open the door,
+ *                          display message that the door is opening while opening the door,
+ *                          display message that the door is closing while closing the door
+ *                          and hold the system from working until the door open and closed
+ *                         -if entered password is incorrect display message that is not valid
+ *                         -give him no of chances to enter the password
+ *                         -if tries exceed no of chances hold the program from working
+ *                          and display message that is thief tries to hack the system
+ *****************************************************************************************/
+
+#include"application_functions.h"
+
+
+/******************************************************************************************
+ *                                      Global Variables
+ *****************************************************************************************/
+
+/*
+ *array to store the first password entered from the user
+ *and to use it to check the matching between it and the
+ *second time to enter the password
+ */
+uint8 g_password1[5];
+/*
+ *array to store the second password entered from the user
+ *and to use it to check the matching between it and the
+ *first time to enter the password
+ *use it to also to store the password at any tie in the program
+ *use to check if it is the main ADMIN or not
+ */
+uint8 g_password2[5];
+
+/*
+ * variable to use it in the functions call back in of the timer
+ * use it as a counter for seconds
+ */
+uint8 g_tickFlag=0;
+
+/*
+ * variable to use it to hold the system with no work
+ * while the door opening and closing
+ */
+uint8 g_holdSystem = HOLD_SYSTEM;
+/*******************************************************************************************/
+
+
+/******************************************************************************************
+ *                                   START OF THE PROGRAM
+ *****************************************************************************************/
+
+int main(void)
+{
+	/******************************************************************************************
+	 *                                      INITIALIZATION
+	 *****************************************************************************************/
+	/*
+	 *local variable to store the checking byte from the control ECU
+	 * to check if it is first time to run the program or not
+	 */
+	uint8 systemStarting;
+
+	/*
+	 *local variable to store the value of checking of
+	 * the two passwords entered
+	 * check if their are match each other or not
+	 */
+	uint8 pass_match;
+
+	/*
+	 * local variable to use it as counter in the loops
+	 */
+	uint8 counter;
+
+	/*
+	 *local variable to store the value of checking the entered password
+	 * equal to the password stored in the EEPROM or not
+	 */
+	uint8 check_EEPROM;
+
+	/*
+	 * local variable to store the value of the option selected
+	 * from the two options of changing password or open the door
+	 */
+	uint8 decision;
+
+	/*
+	 * local variable to use it to increment the numbers of
+	 * tries to enter the password wrong not equal to stored password
+	 * give it initial value by 0 assuming no error in entered password as first
+	 */
+	uint8 danger_error = NO_DANGER;
+
+	/*
+	 * local variable to use it to force the program to begin from the first
+	 *  super loop if the password entered wrong for 3 times to
+	 *  to prevent the program return from the same sequence after thief event occur
+	 */
+	uint8 restart_mainProgram = FALSE;
+
+	/*
+	 * initialize the configure structure of the timer
+	 * choosing value in order to form the structure
+	 */
+	Timer_ConfigType timer={START_VALUE, COMPARE_VALUE, Timer1, F_CPU_1024, Compare};
+
+	/*
+	 * initialize the configure structure of UART
+	 * choosing value in order to form the structure
+	 */
+	UART_config uart = {BIT_8, DISABLE, STOP_BIT_1};
+
+	/*
+	 * initialize UART module to begin
+	 * pass to it the address of the uart structure
+	 * to substitute with its value in the init function
+	 */
+	UART_init(&uart);
+
+	/*enable the interrupt bit in the SREG register*/
+	SREG |= (1<<7);
+
+	/*
+	 * initialize the driver of LCD to begin
+	 */
+	LCD_init();
+
+	/*
+	 * tell the control ECU that the human interface ECU is ready to receive
+	 */
+	UART_sendByte(ECU_READY);
+	/*
+	 * receiving the order from the control ECU t know if it first time or not
+	 * store the byte in startSystem local variable
+	 */
+	systemStarting= UART_recieveByte();
+
+
+	/******************************************************************************************
+	 *                      STAGE (1): First time to log in the program
+	 *****************************************************************************************/
+	if (systemStarting == FIRST_TIME_TO_LOG_IN)
+	{
+		do
+		{
+			/*
+			 * call the function who is responsible  for the first
+			 * log in to start the program for the first time
+			 */
+			start_System();
+
+			/*
+			 * after finishing the the welcome function, the two global
+			 * passwords has been filled from the user inputs
+			 * send them to the password_checkMismatch function to check if
+			 * there is mismatch between them them or not
+			 */
+			pass_match = password_checkMismatch(g_password1, g_password2);
+
+			/*
+			 * Actions if there is a mismatch between the two entered passwords
+			 */
+			if(pass_match == MISMATCH)
+			{
+				/*
+				 *   1-call the function of call screen to clear the LCD screen
+				 *   2-display a message for the user to tell him there is
+				 *   mismatch between two passwords "Mismatch password"
+				 *   3-force arrow of the LCD to go to the second line
+				 *   4-display message to ask him to "Repeat steps"
+				 *   5-keep the message on the screen for 3 seconds
+				 */
+				LCD_clearScreen();
+				LCD_displayStringRowColumn(0,0,"Mismatch passwords");
+				LCD_goToRowColumn(1,0);
+				LCD_displayStringRowColumn(1,0,"Repeat steps");
+				_delay_ms(3000);
+
+			}/*End of pass_match condition*/
+
+			/*
+			 * do- as we want to do this step one time at least
+			 * while - to repeat the same steps if there is a mismatch in the two entered passwords
+			 */
+		}while(pass_match == MISMATCH);
+
+		/*
+		 *if there is no mismatch in the two entered passwords
+		 *and the two entered password equal to each other
+		 */
+		if(pass_match == MATCH)
+		{
+
+			/*
+			 *now it can be stored in the non-volatile memory
+			 *so it is time to send the password to store it in the memory
+			 */
+			for(counter = INITIAL_VALUE; counter< PASSWORD_WIDTH; counter++)
+			{
+				/*
+				 * wait for the control ECU to be ready to
+				 * send the password to it byte by byte using UART
+				 */
+				while(UART_recieveByte() != ECU_READY){}
+				UART_sendByte(g_password1[counter]);
+				/*
+				 * wait 80 ms to give chance for the EEPROM to write the
+				 * password bytes  in the certain locations
+				 */
+				_delay_ms(80);
+			}/*end of saving the pass in the memory*/
+
+			/*
+			 *   1-call the function of call screen to clear the LCD screen
+			 *   2-display a message for the user to tell him that is
+			 *   password is saved "Password saved"
+			 *   3-force arrow of the LCD to go to the second line
+			 *   4-display message for user "Successfully"
+			 *   5-keep the message on the screen for 4 seconds
+			 *   6-clear the LCD screen
+			 */
+			LCD_clearScreen();
+			LCD_displayStringRowColumn(0,0,"Password saved");
+			LCD_goToRowColumn(1,0);
+			LCD_displayStringRowColumn(1,0,"Successfully");
+			_delay_ms(4000);
+			LCD_clearScreen();
+
+		}/*end of pass_match = MATCH*/
+
+	}/*end of the first time*/
+
+	/******************************************************************************************
+	 *                                  EVERYTIME APPLICATION
+	 *                                       SUPER LOOP
+	 *****************************************************************************************/
+	while(1)
+	{
+
+		/******************************************************************************************
+		 *            STAGE (2): Any time of the program ask user to select option
+		 *****************************************************************************************/
+
+		/*
+		 * call the function select_Option which is responsible
+		 * to give the user chance to select option from two
+		 * options: change the password or open the door
+		 */
+		decision = select_Option();
+
+		/******************************************************************************************
+		 *                  STAGE (3): Change the password of the system
+		 *****************************************************************************************/
+
+		/*
+		 * option to change the password if the selected
+		 * option is first choice
+		 */
+		if(decision == CHOICE_1)
+		{
+			/*
+			 * send the choice byte to the control ECU
+			 * to make him ready for tasks of this choice
+			 */
+			while(UART_recieveByte() != ECU_READY){}
+			UART_sendByte(decision);
+			/******************************************************************************************
+			 *                STAGE (3-1): Steps to check if user is the Owner or not
+			 *****************************************************************************************/
+
+			/*
+			 * usage of do-while as it is required to ask him to
+			 * enter the password at first at least one time
+			 */
+			do
+			{
+
+				/*
+				 * Before enable user to change the password ask him first
+				 * to enter the stored password to compare it with the
+				 * original password
+				 */
+
+				store_Password(g_password2);
+
+				/*
+				 * send the entered password to control ECU to
+				 * check if it equals to the original password or not
+				 */
+				for(counter = INITIAL_VALUE; counter < PASSWORD_WIDTH; counter++)
+				{
+					/*
+					 * wait for the control ECU to be ready to
+					 * send the password to it byte by byte using UART
+					 */
+					while(UART_recieveByte() != ECU_READY){}
+					UART_sendByte(g_password2[counter]);
+					/*
+					 * wait 80 ms to give chance for the EEPROM to write the
+					 * password bytes  in the certain locations
+					 */
+					_delay_ms(80);
+
+				}/*End of for loop for sending password*/
+
+
+				/*
+				 * after sending the password to control ECU
+				 * wait until Control ECU send byte that if the entered password matches original
+				 *  or not, and told it that HMI ECU is ready to receive the byte
+				 */
+				UART_sendByte(ECU_READY);
+				/*
+				 *store the received byte in local variable check_EEPROM
+				 */
+				check_EEPROM = UART_recieveByte();
+
+				/*
+				 *if the message from the control ECU tell HMI that
+				 * there is mismatch between two entered passwords
+				 */
+				if(check_EEPROM == MISMATCH)
+				{
+					/*
+					 *   1-call the function of call screen to clear the LCD screen
+					 *   2-display a message for the user to tell him that
+					 *   is the entered password is not valid
+					 *   3-force arrow of the LCD to go to the second line
+					 *   4-display message to ask him to "TRY AGAIN!"
+					 *   5-keep the message on the screen for 3 seconds
+					 */
+
+					LCD_clearScreen();
+					LCD_displayStringRowColumn(0,0,"Sorry Invalid Pass ");
+					LCD_goToRowColumn(1,0);
+					LCD_displayStringRowColumn(1,0,"TRY AGAIN!");
+					_delay_ms(3000);
+
+					/*
+					 *increment the danger_error to be indicator for number of
+					 *valid tries to let the user be able to enter the pass
+					 */
+					danger_error++;
+
+					/*
+					 *if the user exhaust all valid tries to enter the
+					 *password, it will stop all the system as the system
+					 *realize from that a strange one tries to hack the system
+					 */
+
+					/******************************************************************************************
+					 *                                THIEF MODE in STAGE (3-1)
+					 *****************************************************************************************/
+
+					if(danger_error == ALLOWED_TRIES_TO_ENTER_PASSWORD)
+					{
+						/*
+						 * call the function Timer_setCallBack and give it
+						 * the address of function timerdanger to force the timer ISR
+						 * to call this function every interrupt occur, "every one second"
+						 */
+						Timer_setCallBack(timerDanger, Timer1);
+
+						/*
+						 * call the function of LCD clear screen to be ready
+						 * for the called function will display on LCD
+						 */
+						LCD_clearScreen();
+
+						/*
+						 * Start the timer to count
+						 * give it the address of the declared structure
+						 * to put its values in the initialization function
+						 * in the entire registers of the timer
+						 */
+						Timer_init(&timer);
+
+						/*
+						 *pooling to hold the whole program until the thief event finished
+						 * to make all peripherals keyPad , LCD pooled with no work
+						 * until the action of Buzzer ends successfully
+						 */
+						while(g_holdSystem != RESUME_SYSTEM){}
+
+						/*
+						 * return the state of the g_holdSystem to be hold again
+						 * after being RESUME to be ready for any required
+						 * action to hold the system again
+						 */
+						g_holdSystem = HOLD_SYSTEM;
+
+						/*
+						 * change the state of the restart main program to TRUE state
+						 * to terminate from the while loop and make
+						 * the force the program to start from the basic options
+						 */
+						restart_mainProgram = TRUE;
+					}/*end of danger error condition*/
+
+				}/*end ofcheck_EEPROM ==1*/
+
+				/*
+				 * to continue repeating the same steps if the entered password NOT
+				 * matches the original password and the state to restart
+				 * the program is false
+				 */
+			}while( (check_EEPROM ==  MISMATCH) && (restart_mainProgram == FALSE) );
+
+			/******************************************************************************************
+			 *              STAGE (3-2): Allow owner to change the password to a new one
+			 *****************************************************************************************/
+			/*
+			 *if the message from the control ECU tell HMI that
+			 * there is NO mismatch between two entered passwords
+			 */
+			if (check_EEPROM == MATCH)
+			{
+
+				/*
+				 * usage of do-while as it is required to ask him to
+				 * enter the password at first at least one time
+				 */
+				do
+				{
+					/*
+					 * call the function who is responsible  for the first
+					 * log in to start the program for the first time
+					 */
+					start_System();
+					/*
+					 * after finishing the the welcome function, the two global
+					 * passwords has been filled from the user inputs
+					 * send them to the password_checkMismatch function to check if
+					 * there is mismatch between them them or not
+					 */
+					pass_match = password_checkMismatch(g_password1, g_password2);
+
+					/*
+					 * Actions if there is a mismatch between the two entered passwords
+					 */
+					if(pass_match == MISMATCH)
+					{
+						/*
+						 *   1-call the function of call screen to clear the LCD screen
+						 *   2-display a message for the user to tell him there is
+						 *   mismatch between two passwords "Mismatch password"
+						 *   3-force arrow of the LCD to go to the second line
+						 *   4-display message to ask him to "Repeat steps"
+						 *   5-keep the message on the screen for 3 seconds
+						 */
+						LCD_clearScreen();
+						LCD_displayStringRowColumn(0,0,"Mismatch passwords");
+						LCD_goToRowColumn(1,0);
+						LCD_displayStringRowColumn(1,0,"Repeat steps");
+						_delay_ms(3000);
+
+					}/*End of pass_match condition*/
+
+					/*
+					 * do- as we want to do this step one time at least
+					 * while - to repeat the same steps if there is a
+					 * mismatch in the two entered passwords
+					 */
+				}while(pass_match == MISMATCH);
+
+				/*
+				 *if there is no mismatch in the two entered passwords
+				 *and the two entered password equal to each other
+				 */
+				if(pass_match == MATCH)
+				{
+
+					/*
+					 *now it can be stored in the non-volatile memory
+					 *so it is time to send the password to store it in the memory
+					 */
+					for(counter = INITIAL_VALUE; counter< PASSWORD_WIDTH; counter++)
+					{
+						/*
+						 * wait for the control ECU to be ready to
+						 * send the password to it byte by byte using UART
+						 */
+						while(UART_recieveByte() != ECU_READY){}
+						UART_sendByte(g_password1[counter]);
+						/*
+						 * wait 80 ms to give chance for the EEPROM to write the
+						 * password bytes  in the certain locations
+						 */
+						_delay_ms(80);
+					}/*end of saving the pass in the memory*/
+
+					/*
+					 *   1-call the function of call screen to clear the LCD screen
+					 *   2-display a message for the user to tell him that is
+					 *   password is saved "Password saved"
+					 *   3-force arrow of the LCD to go to the second line
+					 *   4-display message for user "Successfully"
+					 *   5-keep the message on the screen for 4 seconds
+					 *   6-clear the LCD screen
+					 */
+					LCD_clearScreen();
+					LCD_displayStringRowColumn(0,0,"Password saved");
+					LCD_goToRowColumn(1,0);
+					LCD_displayStringRowColumn(1,0,"Successfully");
+					_delay_ms(4000);
+					LCD_clearScreen();
+
+				}/*end of pass_match = MATCH*/
+
+			}/*end of check_EEPROM ==0*/
+
+			/*
+			 *  return the state of danger mode to the default after restart the
+			 *  program from first again, to keep the chances to enter the password
+			 *  maximum times and to give the chance to enable thief mode again
+			 */
+			danger_error = NO_DANGER;
+
+		}/*End of choice 1*/
+
+		/******************************************************************************************
+		 *                             STAGE (4): OPEN THE DOOR
+		 *****************************************************************************************/
+		/*
+		 * option to change the password if the selected
+		 * option is second choice
+		 */
+		else if(decision == CHOICE_2)
+		{
+			/*
+			 * send the choice byte to the control ECU
+			 * to make him ready for tasks of this choice
+			 */
+			while(UART_recieveByte() != ECU_READY){}
+			UART_sendByte(decision);
+			/******************************************************************************************
+			 *                STAGE (4-1): Steps to check if user is the Owner or not
+			 *****************************************************************************************/
+
+			/*
+			 * usage of do-while as it is required to ask him to
+			 * enter the password at first at least one time
+			 */
+			do
+			{
+
+				/*
+				 * Before enable user to change the password ask him first
+				 * to enter the stored password to compare it with the
+				 * original password
+				 */
+
+				store_Password(g_password2);
+
+				/*
+				 * send the entered password to control ECU to
+				 * check if it equals to the original password or not
+				 */
+				for(counter = INITIAL_VALUE; counter < PASSWORD_WIDTH; counter++)
+				{
+					/*
+					 * wait for the control ECU to be ready to
+					 * send the password to it byte by byte using UART
+					 */
+					while(UART_recieveByte() != ECU_READY){}
+					UART_sendByte(g_password2[counter]);
+					/*
+					 * wait 80 ms to give chance for the EEPROM to write the
+					 * password bytes  in the certain locations
+					 */
+					_delay_ms(80);
+
+				}/*End of for loop for sending password*/
+
+
+				/*
+				 * after sending the password to control ECU
+				 * wait until Control ECU send byte that if the entered password matches original
+				 *  or not, and told it that HMI ECU is ready to receive the byte
+				 */
+				UART_sendByte(ECU_READY);
+				/*
+				 *store the received byte in local variable check_EEPROM
+				 */
+				check_EEPROM = UART_recieveByte();
+
+				/*
+				 *if the message from the control ECU tell HMI that
+				 * there is mismatch between two entered passwords
+				 */
+				if(check_EEPROM == MISMATCH)
+				{
+					/*
+					 *   1-call the function of call screen to clear the LCD screen
+					 *   2-display a message for the user to tell him that
+					 *   is the entered password is not valid
+					 *   3-force arrow of the LCD to go to the second line
+					 *   4-display message to ask him to "TRY AGAIN!"
+					 *   5-keep the message on the screen for 3 seconds
+					 */
+
+					LCD_clearScreen();
+					LCD_displayStringRowColumn(0,0,"Sorry Invalid Pass ");
+					LCD_goToRowColumn(1,0);
+					LCD_displayStringRowColumn(1,0,"TRY AGAIN!");
+					_delay_ms(3000);
+
+					/*
+					 *increment the danger_error to be indicator for number of
+					 *valid tries to let the user be able to enter the pass
+					 */
+					danger_error++;
+
+					/*
+					 *if the user exhaust all valid tries to enter the
+					 *password, it will stop all the system as the system
+					 *realize from that a strange one tries to hack the system
+					 */
+
+					/******************************************************************************************
+					 *                                THIEF MODE in STAGE (4-1)
+					 *****************************************************************************************/
+
+					if(danger_error == ALLOWED_TRIES_TO_ENTER_PASSWORD)
+					{
+						/*
+						 * call the function Timer_setCallBack and give it
+						 * the address of function timerdanger to force the timer ISR
+						 * to call this function every interrupt occur, "every one second"
+						 */
+						Timer_setCallBack(timerDanger, Timer1);
+
+						/*
+						 * call the function of LCD clear screen to be ready
+						 * for the called function will display on LCD
+						 */
+						LCD_clearScreen();
+
+						/*
+						 * Start the timer to count
+						 * give it the address of the declared structure
+						 * to put its values in the initialization function
+						 * in the entire registers of the timer
+						 */
+						Timer_init(&timer);
+
+						/*
+						 *pooling to hold the whole program until the thief event finished
+						 * to make all peripherals keyPad , LCD pooled with no work
+						 * until the action of Buzzer ends successfully
+						 */
+						while(g_holdSystem != RESUME_SYSTEM){}
+
+						/*
+						 * return the state of the g_holdSystem to be hold again
+						 * after being RESUME to be ready for any required
+						 * action to hold the system again
+						 */
+						g_holdSystem = HOLD_SYSTEM;
+
+						/*
+						 * change the state of the restart main program to TRUE state
+						 * to terminate from the while loop and make
+						 * the force the program to start from the basic options
+						 */
+						restart_mainProgram = TRUE;
+					}/*end of danger error condition*/
+
+				}/*end ofcheck_EEPROM ==1*/
+
+				/*
+				 * to continue repeating the same steps if the entered password NOT
+				 * matches the original password and the state to restart
+				 * the program is false
+				 */
+			}while( (check_EEPROM ==  MISMATCH) && (restart_mainProgram == FALSE) );
+
+			/******************************************************************************************
+			 *              STAGE (4-2): Allow owner to open the door
+			 *****************************************************************************************/
+			/*
+			 *if the message from the control ECU tell HMI that
+			 * there is NO mismatch between two entered passwords
+			 */
+			if (check_EEPROM == MATCH)
+			{
+
+				Timer_setCallBack(timerMoving_Clockwise, Timer1);
+				/*
+				 * Start the timer to count
+				 * give it the address of the declared structure
+				 * to put its values in the initialization function
+				 * in the entire registers of the timer
+				 */
+				Timer_init(&timer);
+
+				/*
+				 *pooling to hold the whole program until the thief event finished
+				 * to make all peripherals keyPad , LCD pooled with no work
+				 * until the action of Buzzer ends successfully
+				 */
+				while(g_holdSystem != RESUME_SYSTEM){}
+
+				/*
+				 * return the state of the g_holdSystem to be hold again
+				 * after being RESUME to be ready for any required
+				 * action to hold the system again
+				 */
+				g_holdSystem = HOLD_SYSTEM;
+
+			}/*end of check_EEPROM == MATCH*/
+
+			/*
+			 *  return the state of danger mode to the default after restart the
+			 *  program from first again, to keep the chances to enter the password
+			 *  maximum times and to give the chance to enable thief mode again
+			 */
+			danger_error = NO_DANGER;
+
+		}/*End of CHOICE 2*/
+
+		/*
+		 * return the state of restart to the default value to
+		 * allow the while continue in while loop if there
+		 * is error in entered password
+		 */
+		restart_mainProgram = FALSE;
+
+	}/*End of SUPER loop*/
+
+}/*End of main program*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
