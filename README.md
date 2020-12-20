@@ -1,8 +1,8 @@
 # Password_Based_Door_Locker
-Password Based Security Door Lock based on 2 ATmega16 microcontrollers,
-one for human interfacing connected to LCD to display messages and Keypad to enter password and select options,
-The other one connected DC motor act as a door, 
-external EEPROM to store password in it and buzzer to use it if the entered password was wrong for several times.
+Password Based Security Door Lock: 
+based on 2 ATmeaga16 microcontrollers that communicates using UART protocol, first MCU for human interface machine connected to LCD and Keypad, second MCU for control that handles all the system logic and decision making connected to DC motor “act as door”, External EEPROM “to store password”, and buzzer “to keep privacy in case of theft”
+All drivers are implemented using the configurations technique, different design methods used like interrupts, call backs, tight and periodic polling, and software layers for portability and maintainability purpose with high quality and readable code with good comments. 
+Drivers designed for the project: Timer, UART, I2C, External EEPROM, LCD, Keypad, DC motor, and buzzer.
 
 Sequence of the Application as follow:
 
