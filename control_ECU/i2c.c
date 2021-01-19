@@ -1,24 +1,35 @@
-/*
- * i2c.c
+/**********************************************************************************
+ * [FILE NAME]: i2c.c
  *
- *  Created on: Oct 1, 2020
- *      Author: user
- */
+ * [AUTHOR]: Toka Zakaria Mohamed Ramadan
+ *
+ * [DATE CREATED]: Nov 5, 2020
+ *
+ * [Description]: Function to initialize i2c driver
+ *
+ ***********************************************************************************/
  
+
 #include "i2c.h"
 
-void TWI_init(void)
+
+void TWI_init(const TWI_ConfigType * Config_ptr)
 {
     /* Bit Rate: 400.000 kbps using zero pre-scaler TWPS=00 and F_CPU=8Mhz */
-    TWBR = 0x02;
-	TWSR = 0x00;
+
+    TWBR = Config_ptr->rateRegister;
+
+	TWSR = ( TWSR & (0XFC) ) | (Config_ptr->prescaler);
 	
     /* Two Wire Bus address my address if any master device want to call me: 0x1 (used in case this MC is a slave device)
        General Call Recognition: Off */
-    TWAR = 0b00000010; // my address = 0x01 :) 
+	/*shift left to use as address is 7 bit only*/
+    TWAR =  ( (Config_ptr->address)<< 1 );  //0b00000010; // my address = 0x01 :)
 	
     TWCR = (1<<TWEN); /* enable TWI */
 }
+
+
 
 void TWI_start(void)
 {
