@@ -1,10 +1,14 @@
-/*
- * i2c.h
+/**********************************************************************************
+ * [FILE NAME]: i2c.h
  *
- *  Created on: Oct 1, 2020
- *      Author: user
- */
-
+ * [AUTHOR]: Toka Zakaria Mohamed Ramadan
+ *
+ * [DATE CREATED]: Nov 5, 2020
+ *
+ * [Description]: File of All types Declaration and Functions prototypes of i2c
+ *                configuration.
+ *
+ ***********************************************************************************/
 
 #ifndef I2C_H_
 #define I2C_H_
@@ -26,9 +30,34 @@
 #define TW_MR_DATA_NACK  0x58 // Master received data but doesn't send ACK to slave
 
 /*******************************************************************************
+ *                         Types Declaration                                   *
+ *******************************************************************************/
+typedef enum
+{
+	TWPS_0, TWPS_1, TWPS_2, TWPS_3
+
+}TWI_Prescaler;
+
+
+
+typedef struct
+{
+	/*variable to use it to select the rate of i2c*/
+	uint8 rateRegister;
+
+	/*variable to select the address of the slave*/
+	uint8 address;
+
+	/*variable to select the prescaler of the baud rate */
+	TWI_Prescaler prescaler;
+
+}TWI_ConfigType;
+
+
+/*******************************************************************************
  *                      Functions Prototypes                                   *
  *******************************************************************************/
-void TWI_init(void);
+void TWI_init(const TWI_ConfigType * Config_ptr);
 void TWI_start(void);
 void TWI_stop(void);
 void TWI_write(uint8 data);
