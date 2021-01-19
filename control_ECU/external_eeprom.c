@@ -8,10 +8,12 @@
 #include "i2c.h"
 #include "external_eeprom.h"
 
+TWI_ConfigType init = {0X02, 0X01, TWPS_0};
+
 void EEPROM_init(void)
 {
 	/* just initialize the I2C(TWI) module inside the MC */
-	TWI_init();
+	TWI_init( &init );
 }
 
 uint8 EEPROM_writeByte(uint16 u16addr, uint8 u8data)
