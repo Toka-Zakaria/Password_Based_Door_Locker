@@ -1,9 +1,14 @@
-/*
- * uart.h
+/**********************************************************************************
+ * [FILE NAME]: uart.h
  *
- *  Created on: Oct 1, 2020
- *      Author: user
- */
+ * [AUTHOR]: Toka Zakaria Mohamed Ramadan
+ *
+ * [DATE CREATED]: Nov 5, 2020
+ *
+ * [Description]: File of All types Declaration and Functions prototypes of uart
+ *                configuration.
+ *
+ ***********************************************************************************/
 
 #ifndef UART_H_
 #define UART_H_
